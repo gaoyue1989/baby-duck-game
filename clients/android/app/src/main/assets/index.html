@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#8ED8F8">
+<title>🐥 小黄鸭乐园</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; position: fixed; inset: 0;
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: none;
+    background: #8ED8F8;
+  }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+
+  /* ---------- 天空 ---------- */
+  #sky {
+    position: absolute; inset: 0; z-index: 0;
+    background: linear-gradient(#8ED8F8 0%, #C9EEFF 68%, #E8FAFF 100%);
+    transition: background 1.2s ease;
+  }
+  body.night #sky { background: linear-gradient(#0E1B4D 0%, #27356E 60%, #3A4C8F 100%); }
+
+  #sun { position: absolute; top: 5%; left: 7%; width: clamp(90px, 14vmin, 150px); transition: opacity .9s, transform .9s; }
+  #sun svg { width: 100%; height: auto; display: block; }
+  #sun .rays { transform-origin: 60px 60px; animation: spin 26s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  body.night #sun { opacity: 0; transform: translateY(50px) scale(.5); }
+
+  #moon { position: absolute; top: 6%; right: 9%; font-size: clamp(54px, 9vmin, 92px); opacity: 0; transition: opacity 1.2s; }
+  body.night #moon { opacity: 1; }
+
+  .cloud { position: absolute; left: 0; opacity: .92; filter: drop-shadow(0 4px 6px rgba(60,130,180,.25)); transition: opacity 1s; animation: drift linear infinite; }
+  @keyframes drift { from { transform: translateX(-160px); } to { transform: translateX(105vw); } }
+  body.night .cloud { opacity: .18; }
+
+  #stars { position: absolute; inset: 0 0 46% 0; opacity: 0; transition: opacity 1.4s; }
+  body.night #stars { opacity: 1; }
+  #stars span { position: absolute; color: #FFE066; text-shadow: 0 0 8px rgba(255,224,102,.9); animation: twinkle 2s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: .2; transform: scale(.75); } 50% { opacity: 1; transform: scale(1.15); } }
+
+  /* ---------- 池塘 ---------- */
+  #pond {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 42%; z-index: 1;
+    background: linear-gradient(#7FD4F7 0%, #4FB6EC 45%, #2E9FD8 100%);
+    overflow: visible; transition: filter 1.2s;
+  }
+  body.night #pond { filter: brightness(.6) saturate(.85); }
+  .wave { position: absolute; top: -26px; left: 0; width: 200%; height: 30px; animation: waveMove 8s linear infinite; }
+  .wave.w2 { top: -13px; height: 24px; opacity: .7; animation-duration: 13s; animation-direction: reverse; }
+  @keyframes waveMove { to { transform: translateX(-50%); } }
+
+  /* ---------- 特效画布 / 鸭子 / 泡泡 ---------- */
+  #fx { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
+
+  .duck { position: absolute; z-index: 10; will-change: transform; pointer-events: none; }
+  .duck svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 5px 7px rgba(20,80,130,.28)); }
+  .fx { transform-origin: 50% 100%; }
+  .pop-in { animation: pop .5s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.18); } 100% { transform: scale(1); } }
+  .squish { animation: squish .45s ease-out; }
+  @keyframes squish { 0% { transform: scale(1.18, .78); } 60% { transform: scale(.9, 1.12); } 100% { transform: scale(1, 1); } }
+  .spin { animation: spin360 .9s ease-in-out; }
+  @keyframes spin360 { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .dance { animation: dance .45s ease-in-out 4; }
+  @keyframes dance { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg) translateY(-9px); } }
+  .duck-face { width: 100%; }
+  .duck.leaving { opacity: 0; transition: opacity .9s ease; }
+
+  .wing { transform-box: fill-box; transform-origin: 18% 45%; }
+  .flap .wing { animation: flap .32s ease-in-out infinite; }
+  @keyframes flap { 0%, 100% { transform: rotate(-18deg); } 50% { transform: rotate(-62deg); } }
+  .beak-top, .beak-bottom { transform-box: fill-box; transform-origin: left center; transition: transform .09s ease; }
+  .quack .beak-top { transform: translateY(-3.5px) rotate(-9deg); }
+  .quack .beak-bottom { transform: translateY(3.5px) rotate(7deg); }
+  .lid { opacity: 0; animation: blink 5s ease-in-out infinite; }
+  @keyframes blink { 0%, 92%, 100% { opacity: 0; } 94%, 96% { opacity: 1; } }
+
+  .duck-bubble {
+    position: absolute; bottom: 97%; left: 50%;
+    transform: translateX(-50%) scale(0); transform-origin: bottom center;
+    background: #fff; border: 3px solid #FFD93B; border-radius: 16px;
+    padding: 6px 12px; font-weight: 800; white-space: nowrap;
+    color: #7A4A00; font-size: clamp(34px, 6.5vmin, 58px); line-height: 1.15;
+    box-shadow: 0 4px 10px rgba(0,0,0,.14);
+    transition: transform .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .duck-bubble.show { transform: translateX(-50%) scale(1); }
+  .duck-bubble::after {
+    content: ''; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px;
+    background: #fff; border-right: 3px solid #FFD93B; border-bottom: 3px solid #FFD93B;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .soap {
+    position: absolute; z-index: 15; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.95), rgba(200,240,255,.42) 55%, rgba(130,205,255,.18) 100%);
+    border: 2.5px solid rgba(255,255,255,.85);
+    box-shadow: inset -6px -8px 14px rgba(120,190,255,.28), 0 4px 12px rgba(30,120,190,.16);
+    display: grid; place-items: center;
+  }
+  .soap span { font-weight: 800; color: #0B6FA4; text-shadow: 0 1px 0 #fff; }
+  .soap.burst { animation: soapPop .32s ease-out forwards; }
+  @keyframes soapPop { to { transform: scale(1.7); opacity: 0; } }
+
+  /* ---------- 顶部提示条 ---------- */
+  #prompt {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
+    background: rgba(255,255,255,.94); border: 3px solid #FFD93B; color: #7A4A00;
+    font-weight: 800; font-size: clamp(15px, 2.7vmin, 23px);
+    padding: 8px 20px; border-radius: 999px; max-width: 92vw; text-align: center;
+    box-shadow: 0 4px 14px rgba(30,90,140,.18); transition: background .4s, color .4s, border-color .4s;
+  }
+  #prompt.praise { background: #FFF3C4; border-color: #7ED957; color: #2E7D32; animation: pulse .45s ease infinite alternate; }
+  @keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.07); } }
+  body.night #prompt { background: rgba(24,34,74,.85); color: #FFE066; border-color: #6C7BFF; }
+
+  /* ---------- 开场画面 ---------- */
+  #splash {
+    position: absolute; inset: 0; z-index: 22; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    text-align: center; transition: opacity .7s;
+  }
+  #splash.gone { opacity: 0; }
+  #splash h1 { font-size: clamp(38px, 9vmin, 82px); color: #fff; text-shadow: 0 4px 0 #F2A93B, 0 9px 20px rgba(0,0,0,.28); }
+  #splash .row { font-size: clamp(36px, 8vmin, 66px); animation: bobDucks 1.5s ease-in-out infinite alternate; }
+  @keyframes bobDucks { from { transform: translateY(-6px) rotate(-3deg); } to { transform: translateY(8px) rotate(3deg); } }
+  #splash p { font-size: clamp(15px, 2.8vmin, 23px); color: #0B6FA4; background: rgba(255,255,255,.88); padding: 8px 22px; border-radius: 999px; font-weight: 700; }
+
+  /* ---------- 底部大按钮 ---------- */
+  #controls {
+    position: absolute; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; z-index: 25;
+  }
+  .ctl {
+    width: clamp(58px, 9.6vmin, 88px); height: clamp(58px, 9.6vmin, 88px);
+    border-radius: 24px; border: 4px solid; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-family: inherit; cursor: pointer; box-shadow: 0 5px 0 rgba(0,0,0,.14);
+    transition: transform .12s ease;
+  }
+  .ctl:active, .ctl.pressed { transform: scale(.88); }
+  .ctl .ico { font-size: clamp(22px, 4.8vmin, 36px); line-height: 1.1; }
+  .ctl .lbl { font-size: clamp(11px, 1.9vmin, 16px); font-weight: 800; }
+  .ctl.red    { border-color: #FF6B6B; color: #E64545; }
+  .ctl.teal   { border-color: #4ECDC4; color: #159A91; }
+  .ctl.purple { border-color: #A78BFA; color: #7C5CD6; }
+  .ctl.orange { border-color: #FFA94D; color: #E8720C; }
+  .ctl.blue   { border-color: #6C7BFF; color: #4C5AE0; }
+  @media (max-width: 560px) { #controls { gap: 6px; } .ctl { border-radius: 18px; } }
+
+  /* ---------- 家长角按钮 ---------- */
+  #parent { position: absolute; top: 10px; right: 10px; z-index: 30; display: flex; gap: 8px; }
+  #parent button {
+    width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.9);
+    background: rgba(255,255,255,.55); font-size: 20px; cursor: pointer; font-family: inherit;
+    transition: transform .12s, background .3s;
+  }
+  #parent button:active { transform: scale(.88); }
+  #btn-mic.listening { background: #7ED957; animation: micPulse 1.2s ease infinite; }
+  #btn-mic.hit { background: #FFE066; }
+  @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(126,217,87,.7); } 50% { box-shadow: 0 0 0 10px rgba(126,217,87,0); } }
+
+  /* ---------- 家长指南 ---------- */
+  #help {
+    position: absolute; inset: 0; z-index: 40; background: rgba(20,40,70,.55);
+    display: grid; place-items: center; padding: 16px;
+  }
+  #help.hidden { display: none; }
+  #help .card {
+    background: #fff; border-radius: 24px; padding: 22px 26px; max-width: 620px; width: 100%;
+    max-height: 86vh; overflow: auto; box-shadow: 0 18px 50px rgba(0,0,0,.35);
+    color: #3A3A3A; font-size: 15px; line-height: 1.75;
+  }
+  #help h1 { font-size: 22px; color: #7A4A00; margin-bottom: 8px; }
+  #help ul { padding-left: 20px; margin: 8px 0 14px; }
+  #help li { margin: 4px 0; }
+  #help .goal { background: #FFF8E1; border-left: 4px solid #FFD93B; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
+  #help button {
+    border: 0; border-radius: 999px; padding: 10px 22px; font-size: 16px; font-weight: 800;
+    color: #fff; background: #FF9F1C; cursor: pointer; margin-right: 10px; font-family: inherit;
+  }
+  #help button.alt { background: #4ECDC4; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="sky">
+    <div id="sun">
+      <svg viewBox="0 0 120 120">
+        <g class="rays" id="sunrays"></g>
+        <circle cx="60" cy="60" r="27" fill="#FFD93B"/>
+        <circle cx="60" cy="60" r="21" fill="#FFE98A"/>
+      </svg>
+    </div>
+    <div id="moon">🌙</div>
+    <span class="cloud" style="top:9%; font-size:64px; animation-duration:52s; animation-delay:-8s;">☁️</span>
+    <span class="cloud" style="top:22%; font-size:46px; animation-duration:70s; animation-delay:-38s;">☁️</span>
+    <span class="cloud" style="top:5%; font-size:52px; animation-duration:60s; animation-delay:-24s;">☁️</span>
+    <div id="stars"></div>
+  </div>
+
+  <div id="pond">
+    <svg class="wave w1" viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 30 Q150 0 300 30 T600 30 T900 30 T1200 30 L1200 60 L0 60 Z" fill="rgba(255,255,255,.5)"/></svg>
+    <svg class="wave w2" viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0 30 Q150 2 300 30 T600 30 T900 30 T1200 30 L1200 60 L0 60 Z" fill="rgba(255,255,255,.32)"/></svg>
+  </div>
+
+  <canvas id="fx"></canvas>
+
+  <div id="prompt">点点屏幕，或按键盘任意键</div>
+
+  <div id="splash">
+    <h1>小黄鸭乐园</h1>
+    <div class="row">🐥💛🐥💛🐥</div>
+    <p>点一点 · 按一按 · 跟鸭鸭一起说</p>
+    <p style="font-size:13px; opacity:.75;">家长点右上角 ❓ 查看玩法</p>
+  </div>
+
+  <div id="controls">
+    <button type="button" class="ctl red"    data-act="quack"><span class="ico">🐥</span><span class="lbl">嘎嘎</span></button>
+    <button type="button" class="ctl teal"   data-act="bubbles"><span class="ico">🫧</span><span class="lbl">泡泡</span></button>
+    <button type="button" class="ctl purple" data-act="sing"><span class="ico">🎵</span><span class="lbl">唱歌</span></button>
+    <button type="button" class="ctl orange" data-act="parade"><span class="ico">🔢</span><span class="lbl">数鸭鸭</span></button>
+    <button type="button" class="ctl blue"   data-act="night"><span class="ico">🌙</span><span class="lbl">晚安</span></button>
+  </div>
+
+  <div id="parent">
+    <button type="button" id="btn-mic" title="听到宝宝发声就庆祝（需麦克风）">🎤</button>
+    <button type="button" id="btn-mute" title="静音 / 取消静音">🔊</button>
+    <button type="button" id="btn-help" title="家长指南">❓</button>
+  </div>
+
+  <div id="help" class="hidden">
+    <div class="card">
+      <h1>🦆 小黄鸭乐园 · 家长指南</h1>
+      <div class="goal"><b>目标：</b>用小黄鸭动画吸引宝宝注意，鼓励宝宝开口模仿发音和词语（嘎嘎、爸爸、妈妈、你好、一 二 三……）。鸭鸭说出词后，请带宝宝跟读；宝宝一有反应就会收到「宝宝真棒！」的庆祝。</div>
+      <ul>
+        <li><b>点屏幕</b>：点水里会跳出小鸭鸭，点天上会飞过小鸭鸭；点泡泡会「啵」地破掉并读出里面的词</li>
+        <li><b>键盘任意键</b>都有反应：小鸭鸭会带着一个词出现</li>
+        <li><b>空格</b>＝大鸭鸭嘎嘎　<b>D</b>＝数鸭鸭（一二三四五）　<b>B</b>＝泡泡　<b>M</b>＝唱歌　<b>N</b>＝白天/夜晚　<b>回车</b>＝全部跳起来　<b>方向键</b>＝冲刺/跳跃/从天而降　<b>数字 1-5</b>＝变出对应数量的小鸭鸭</li>
+        <li><b>🎤 麦克风</b>：开启后，听到宝宝发声会自动庆祝（声音只在本地分析，不存储、不上传；http://localhost 或 https 下可用）</li>
+        <li><b>🔊</b> 静音　<b>⛶</b> 全屏更适合平板</li>
+        <li>建议家长全程陪同：跟着一起说、一起拍手、夸张地表扬，比宝宝单独看屏幕效果好得多</li>
+      </ul>
+      <button type="button" id="btn-fullscreen">⛶ 全屏模式</button>
+      <button type="button" id="btn-close-help" class="alt">开始玩啦！</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 基础 ================= */
+const $ = s => document.querySelector(s);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const now = () => performance.now();
+const stageEl = $('#stage');
+const fxCanvas = $('#fx');
+const fctx = fxCanvas.getContext('2d');
+
+let W = innerWidth, H = innerHeight;
+const DPR = Math.min(2, devicePixelRatio || 1);
+const surfaceY = () => H * 0.58;
+const waterY = size => surfaceY() - size * 0.62;
+
+function resize() {
+  W = innerWidth; H = innerHeight;
+  fxCanvas.width = W * DPR; fxCanvas.height = H * DPR;
+  fxCanvas.style.width = W + 'px'; fxCanvas.style.height = H + 'px';
+  fctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+
+/* ================= 词表 ================= */
+const WORDS = ['嘎嘎', '你好', '爸爸', '妈妈', '宝宝', '鸭鸭', '抱抱', '拍拍手', '泡泡', '哇', '耶', '谢谢', '再见', '花', '星星', '水', '跳', '飞', '转圈圈', '亲亲'];
+const BUBBLE_WORDS = ['嘎嘎', '泡泡', '爸爸', '妈妈', '鸭鸭', '抱抱', '拍拍手', '你好', '谢谢', '再见', '哇', '花'];
+const PRAISES = ['宝宝真棒！', '说得真好！', '哇，好厉害！', '宝宝好棒呀！', '再来一次！'];
+const NUM_CN = ['一', '二', '三', '四', '五'];
+const PALETTE = ['#FF6B6B', '#FFD93B', '#4ECDC4', '#A78BFA', '#FF9F1C', '#6C7BFF', '#7ED957'];
+/* 宝宝看图、听声音；文字只出现在给家长看的提示条里 */
+const EMOJI = { '嘎': '🐥', '嘎嘎': '🐥', '你好': '👋', '爸爸': '👨', '妈妈': '👩', '宝宝': '👶', '鸭鸭': '🐥', '抱抱': '🤗', '拍拍手': '👏', '泡泡': '🫧', '哇': '🤩', '耶': '🎉', '谢谢': '😊', '再见': '👋', '花': '🌸', '星星': '⭐', '水': '💧', '跳': '⬆️', '飞': '🕊️', '转圈圈': '🔄', '亲亲': '💖', '扑通': '💦' };
+
+/* ================= 音效（WebAudio 本地合成） ================= */
+let actx = null, master = null, noiseBuf = null, muted = false;
+function initAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(actx.destination);
+    noiseBuf = actx.createBuffer(1, actx.sampleRate * 0.4 | 0, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { /* 无音频环境时静默运行 */ }
+}
+function env(g, t, a, d, peak) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+}
+function quack(pitch = 1, when = 0, vol = 1) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + when;
+  const o = actx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(500 * pitch, t);
+  o.frequency.exponentialRampToValueAtTime(240 * pitch, t + 0.14);
+  const lfo = actx.createOscillator(); lfo.frequency.value = 26;
+  const lg = actx.createGain(); lg.gain.value = 50 * pitch; lfo.connect(lg); lg.connect(o.frequency);
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1500; f.Q.value = 5;
+  const g = actx.createGain(); env(g, t, 0.015, 0.17, 0.5 * vol);
+  o.connect(f); f.connect(g); g.connect(master);
+  o.start(t); lfo.start(t); o.stop(t + 0.25); lfo.stop(t + 0.25);
+}
+function tone(freq, when = 0, dur = 0.5, vol = 0.35) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + when;
+  const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = freq;
+  const o2 = actx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 2;
+  const g = actx.createGain(); env(g, t, 0.02, dur, vol);
+  const g2 = actx.createGain(); g2.gain.value = 0.25;
+  o.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
+  o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
+}
+function boing() {
+  if (!actx || muted) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'sine';
+  o.frequency.setValueAtTime(170, t);
+  o.frequency.exponentialRampToValueAtTime(520, t + 0.16);
+  const g = actx.createGain(); env(g, t, 0.01, 0.2, 0.35);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.3);
+}
+function popSound() {
+  if (!actx || muted) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'square';
+  o.frequency.setValueAtTime(750, t);
+  o.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+  const g = actx.createGain(); env(g, t, 0.005, 0.09, 0.3);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.15);
+}
+function splashSound(vol = 0.4) {
+  if (!actx || muted || !noiseBuf) return;
+  const t = actx.currentTime;
+  const src = actx.createBufferSource(); src.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(2600, t);
+  f.frequency.exponentialRampToValueAtTime(300, t + 0.3);
+  const g = actx.createGain(); env(g, t, 0.01, 0.32, vol);
+  src.connect(f); f.connect(g); g.connect(master); src.start(t);
+}
+function sparkleSound() { [880, 1108.7, 1318.5].forEach((f, i) => tone(f, i * 0.07, 0.35, 0.22)); }
+
+/* ================= 朗读（系统 TTS） ================= */
+let zhVoice = null;
+function loadVoices() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    zhVoice = vs.find(v => /^zh/i.test(v.lang) && /xiaoxiao|tingting|meijia|yating|female|女/i.test(v.name))
+           || vs.find(v => /^zh/i.test(v.lang)) || null;
+  } catch (e) { zhVoice = null; }
+}
+if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text, opt = {}) {
+  if (muted) return;
+  if (typeof window.__nativeSpeak === 'function') {
+    try { window.__nativeSpeak(JSON.stringify({ t: text, p: opt.pitch ?? 1.3, r: opt.rate ?? 0.95 })); return; }
+    catch (e) { /* 原生语音桥不可用时回退网页 TTS */ }
+  }
+  if (!('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (zhVoice) u.voice = zhVoice;
+    u.lang = 'zh-CN'; u.pitch = opt.pitch ?? 1.3; u.rate = opt.rate ?? 0.95; u.volume = 1;
+    speechSynthesis.speak(u);
+  } catch (e) { /* TTS 不可用时只显示文字 */ }
+}
+
+/* ================= 鸭子 ================= */
+const DUCK_SVG = `
+<svg viewBox="0 0 140 120" xmlns="http://www.w3.org/2000/svg">
+  <path d="M22 60 Q6 48 12 32 Q26 44 36 46 Z" fill="#F2B735"/>
+  <ellipse cx="62" cy="74" rx="40" ry="30" fill="#FFD93B"/>
+  <ellipse cx="60" cy="86" rx="32" ry="15" fill="#F2C22E" opacity="0.65"/>
+  <circle cx="96" cy="40" r="26" fill="#FFD93B"/>
+  <path d="M96 15 q-1 -8 -7 -9" stroke="#E8A800" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M97 14 q2 -8 8 -8" stroke="#E8A800" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g class="beak">
+    <ellipse class="beak-top" cx="127" cy="40" rx="12" ry="7" fill="#FF9F1C"/>
+    <ellipse class="beak-bottom" cx="125" cy="49" rx="10" ry="6" fill="#F77F00"/>
+  </g>
+  <g class="eye">
+    <circle cx="102" cy="33" r="7.5" fill="#fff"/>
+    <circle cx="104" cy="34" r="3.6" fill="#3A2A1A"/>
+    <circle cx="106.5" cy="31.5" r="1.5" fill="#fff"/>
+    <ellipse class="lid" cx="102" cy="33" rx="8" ry="8" fill="#FFD93B"/>
+  </g>
+  <circle cx="108" cy="47" r="6" fill="#FFB3C1" opacity="0.6"/>
+  <ellipse class="wing" cx="56" cy="76" rx="20" ry="12" fill="#F2B735" transform="rotate(-18 56 76)"/>
+</svg>`;
+
+const MAX_DUCKS = 14, MAX_SOAPS = 12;
+const ducks = [], soaps = [], parts = [];
+let mascot = null;
+let lastDuckSpawn = 0, lastAction = 0;
+
+function makeDuck(o = {}) {
+  const mode = o.mode || 'swim';
+  const size = o.size || rand(110, 140);
+  const el = document.createElement('div');
+  el.className = 'duck';
+  el.style.width = size + 'px';
+  el.innerHTML = `<div class="fx"><div class="duck-face">${DUCK_SVG}</div></div><div class="duck-bubble"></div>`;
+  const lid = el.querySelector('.lid');
+  if (lid) lid.style.animationDelay = rand(0, 5).toFixed(2) + 's';
+
+  const d = {
+    el, fxEl: el.querySelector('.fx'), faceEl: el.querySelector('.duck-face'), bubble: el.querySelector('.duck-bubble'),
+    size, mode, isMascot: !!o.isMascot,
+    x: o.x ?? rand(20, Math.max(30, W - size - 20)), y: 0,
+    homeY: o.homeY ?? waterY(size), baseY: o.baseY || 0, groundY: o.groundY || 0,
+    vx: o.vx || 0, vy: o.vy || 0, rot: 0, rotV: o.rotV || rand(160, 260),
+    face: o.face || ((o.vx || 0) < 0 ? -1 : 1),
+    t: rand(0, 9), phase: rand(0, 6.28), age: 0, life: o.life ?? rand(9, 14),
+    fxT: rand(0.5, 1.5), fxEvery: o.fxEvery || rand(1.5, 2.8),
+    sayTimer: 0, minX: 6, maxX: W - size - 6, ambT: rand(3, 7),
+  };
+  if (mode === 'fly') {
+    d.baseY = clamp(o.baseY ?? 120, 50, Math.max(60, surfaceY() - 100));
+    d.y = d.baseY; d.life = 999; d.fxEvery = 0.12;
+    el.classList.add('flap');
+  } else if (mode === 'jump') {
+    d.groundY = o.groundY ?? d.homeY; d.y = o.y ?? d.groundY;
+    d.life = Math.max(d.life, 8);
+    el.classList.add('flap');
+  } else if (mode === 'fall') {
+    d.groundY = o.groundY ?? waterY(size); d.y = o.y ?? -130;
+    d.life = Math.max(d.life, 9);
+  } else {
+    d.y = d.homeY;
+  }
+
+  d.fxEl.classList.add('pop-in');
+  setTimeout(() => d.fxEl.isConnected && d.fxEl.classList.remove('pop-in'), 600);
+  stageEl.appendChild(el);
+  ducks.push(d);
+  while (ducks.length > MAX_DUCKS + 1) {
+    const idx = ducks.findIndex(x => !x.isMascot);
+    if (idx < 0) break;
+    removeDuck(idx);
+  }
+  if (o.say) setTimeout(() => d.el.isConnected && say(d, o.say, 2200), 350);
+  return d;
+}
+function removeDuck(i) {
+  const d = ducks[i];
+  clearTimeout(d.sayTimer);
+  d.el.remove();
+  ducks.splice(i, 1);
+}
+function say(d, word, dur = 2200) {
+  d.bubble.textContent = EMOJI[word] ?? word;
+  d.bubble.classList.add('show');
+  clearTimeout(d.sayTimer);
+  d.sayTimer = setTimeout(() => d.bubble.classList.remove('show'), dur);
+}
+function quackAnim(d) {
+  d.el.classList.add('quack');
+  setTimeout(() => d.el.isConnected && d.el.classList.remove('quack'), 480);
+}
+function jumpDuck(d) {
+  if (d.mode !== 'swim' && d.mode !== 'idle' && d.mode !== 'parade') return;
+  d.mode = 'jump'; d.groundY = d.homeY; d.vy = -rand(430, 570);
+  d.el.classList.add('flap');
+  boing();
+}
+function landDuck(d, isFall = false) {
+  d.y = d.groundY; d.rot = 0; d.vy = 0;
+  splashAt(d.x + d.size * 0.5, isFall ? 1.5 : 1);
+  if (isFall) { popSound(); speak('扑通！'); say(d, '扑通', 1800); quack(0.8); }
+  d.mode = d.isMascot ? 'idle' : 'swim';
+  d.homeY = d.groundY;
+  if (d.mode === 'swim' && d.vx === 0) d.vx = rand(30, 60) * (Math.random() < 0.5 ? -1 : 1);
+  if (d.mode === 'swim' && Math.abs(d.vx) > 200) d.vx = rand(35, 65) * Math.sign(d.vx || 1);
+  d.el.classList.remove('flap');
+  d.fxEl.classList.remove('pop-in');
+  d.fxEl.classList.add('squish');
+  setTimeout(() => d.fxEl.isConnected && d.fxEl.classList.remove('squish'), 500);
+}
+
+/* ================= 粒子特效（画布） ================= */
+function ripple(x, y, r0, vr, max) { return { type: 'ripple', x, y, r: r0, vr, max, t: 0 }; }
+function spark(x, y) { return { type: 'spark', x, y, t: 0, dur: 0.9 }; }
+function noteP(x, y, ch, c) { return { type: 'note', x, y, ch, c, t: 0, dur: 1.6 }; }
+function confettiBurst(x, y, n = 22) {
+  for (let i = 0; i < n; i++) parts.push({
+    type: 'confetti', x, y, vx: rand(-260, 260), vy: rand(-540, -120),
+    rot: rand(0, 6.28), vr: rand(-9, 9), w: rand(5, 9), h: rand(8, 15),
+    c: pick(PALETTE), t: 0, dur: 2.2,
+  });
+  if (parts.length > 420) parts.splice(0, parts.length - 420);
+}
+function confettiTop() { for (let i = 0; i < 3; i++) confettiBurst(rand(W * 0.15, W * 0.85), rand(50, 140), 18); }
+function splashAt(x, scale = 1) {
+  parts.push(ripple(x, surfaceY() + 6, 8, 110 * scale, 80 * scale));
+  parts.push(ripple(x, surfaceY() + 6, 4, 70 * scale, 50 * scale));
+  splashSound(0.35 * scale);
+  const n = 7 * scale | 0;
+  for (let i = 0; i < n; i++) parts.push({
+    type: 'drop', x: x + rand(-16, 16), y: surfaceY(),
+    vx: rand(-170, 170), vy: rand(-460, -170) * scale, r: rand(2.5, 5), t: 0, dur: 2,
+  });
+}
+function drawFx(dt) {
+  fctx.clearRect(0, 0, W, H);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.t += dt;
+    if (p.type === 'ripple') {
+      p.r += p.vr * dt;
+      const a = 1 - p.r / p.max;
+      if (a <= 0) { parts.splice(i, 1); continue; }
+      fctx.strokeStyle = `rgba(255,255,255,${(a * 0.85).toFixed(3)})`;
+      fctx.lineWidth = 3;
+      fctx.beginPath();
+      fctx.ellipse(p.x, p.y, p.r, p.r * 0.32, 0, 0, Math.PI * 2);
+      fctx.stroke();
+    } else if (p.type === 'drop') {
+      p.vy += 900 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.y > surfaceY() + 10 && p.vy > 0) { parts.splice(i, 1); continue; }
+      fctx.fillStyle = 'rgba(215,242,255,.9)';
+      fctx.beginPath(); fctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); fctx.fill();
+    } else if (p.type === 'confetti') {
+      p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      if (p.y > H + 30 || p.t > p.dur) { parts.splice(i, 1); continue; }
+      fctx.save();
+      fctx.translate(p.x, p.y); fctx.rotate(p.rot);
+      fctx.fillStyle = p.c;
+      fctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      fctx.restore();
+    } else if (p.type === 'note') {
+      p.y -= 46 * dt; p.x += Math.sin(p.t * 6) * 24 * dt;
+      if (p.t > p.dur) { parts.splice(i, 1); continue; }
+      fctx.globalAlpha = clamp(1.4 - p.t / p.dur * 1.4, 0, 1);
+      fctx.font = 'bold 28px system-ui, sans-serif';
+      fctx.fillStyle = p.c; fctx.textAlign = 'center';
+      fctx.fillText(p.ch, p.x, p.y);
+      fctx.globalAlpha = 1;
+    } else if (p.type === 'heart') {
+      if (p.t > p.dur) { parts.splice(i, 1); continue; }
+      if (p.t > 0) {
+        fctx.globalAlpha = clamp(1.2 - p.t / p.dur * 1.2, 0, 1);
+        fctx.font = '36px system-ui, sans-serif';
+        fctx.textAlign = 'center';
+        fctx.fillText(p.c, p.x + Math.sin(p.t * 5) * 16, p.y - p.t * 72);
+        fctx.globalAlpha = 1;
+      }
+    } else if (p.type === 'spark') {
+      if (p.t > p.dur) { parts.splice(i, 1); continue; }
+      fctx.globalAlpha = Math.sin(Math.PI * p.t / p.dur);
+      fctx.font = 'bold 22px system-ui, sans-serif';
+      fctx.fillStyle = '#FFE066'; fctx.textAlign = 'center';
+      fctx.fillText('✦', p.x, p.y);
+      fctx.globalAlpha = 1;
+    }
+  }
+}
+
+/* ================= 泡泡（带词） ================= */
+function spawnSoap(word) {
+  const size = rand(88, 132);
+  const el = document.createElement('div');
+  el.className = 'soap';
+  el.style.width = el.style.height = size + 'px';
+  const w = word || pick(BUBBLE_WORDS);
+  el.innerHTML = `<span style="font-size:${Math.max(34, size * 0.52) | 0}px">${EMOJI[w] ?? w}</span>`;
+  const s = { el, size, x: rand(10, Math.max(20, W - size - 10)), y: surfaceY() + rand(-10, 40), vy: -rand(55, 95), phase: rand(0, 6.28), t: 0, word: w };
+  stageEl.appendChild(el);
+  soaps.push(s);
+  if (soaps.length > MAX_SOAPS) { const old = soaps.shift(); old.el.remove(); }
+}
+function popSoap(i) {
+  const s = soaps[i]; soaps.splice(i, 1);
+  popSound(); speak(s.word);
+  say(mascot, s.word, 2000); quackAnim(mascot);
+  confettiBurst(s.x + s.size / 2, s.y + s.size / 2, 10);
+  s.el.classList.add('burst');
+  setTimeout(() => s.el.remove(), 340);
+  promptWord(s.word);
+}
+
+/* ================= 引导说话的鼓励循环 ================= */
+const promptEl = $('#prompt');
+let pendingPraise = false, praiseNotBefore = 0, praiseDeadline = 0;
+function showPrompt(t, kind) {
+  promptEl.textContent = t;
+  promptEl.classList.toggle('praise', kind === 'praise');
+}
+function promptWord(w) {
+  showPrompt(`跟鸭鸭一起说：「${w}」`, 'hint');
+  pendingPraise = true;
+  praiseNotBefore = now() + 1200;
+  praiseDeadline = now() + 9000;
+}
+function praise() {
+  if (!pendingPraise) return;
+  pendingPraise = false;
+  const p = pick(PRAISES);
+  showPrompt(p, 'praise');
+  say(mascot, pick(['🎉', '👏', '🌟', '💖']), 2600);
+  speak(p, { pitch: 1.35 });
+  sparkleSound();
+  quackAnim(mascot);
+  confettiBurst(rand(W * 0.2, W * 0.8), rand(60, 160), 22);
+}
+function babyActed() {
+  if (!pendingPraise) return;
+  if (now() > praiseDeadline) { pendingPraise = false; return; }
+  if (now() > praiseNotBefore) praise();
+}
+
+/* ================= 各种玩法 ================= */
+function bigQuack() {
+  quackAnim(mascot);
+  say(mascot, '嘎嘎', 2400);
+  quack(1); quack(0.85, 0.22);
+  splashAt(mascot.x + mascot.size * 0.5, 1);
+  promptWord('嘎嘎');
+  speak('嘎嘎');
+  [-1, 1].forEach((sgn, i) => setTimeout(() => {
+    if (!mascot.el.isConnected) return;
+    const dl = makeDuck({ mode: 'idle', size: rand(95, 115), x: clamp(mascot.x + sgn * rand(190, 290), 10, W - 130), homeY: waterY(105), life: 6, say: '嘎' });
+    quackAnim(dl); quack(rand(1.15, 1.3));
+  }, 350 + i * 280));
+}
+function bubbleShow() {
+  speak('泡泡！'); promptWord('泡泡');
+  let n = 0;
+  const iv = setInterval(() => { spawnSoap(); if (++n >= 8) clearInterval(iv); }, 240);
+}
+let singing = false;
+function sing() {
+  if (singing) return;
+  singing = true;
+  say(mascot, '🎵', 3000); promptWord('啦啦啦');
+  const notes = [[523.25, 0], [587.33, 1], [659.25, 2], [783.99, 3], [880, 4]];
+  notes.forEach((n, i) => setTimeout(() => {
+    tone(n[0]);
+    if (mascot.el.isConnected) parts.push(noteP(mascot.x + mascot.size * 0.72, mascot.y - 4, '♪', PALETTE[n[1]]));
+  }, i * 430));
+  setTimeout(() => { speak('啦啦啦啦！真好玩！'); singing = false; }, notes.length * 430 + 200);
+}
+let parading = false;
+function parade() {
+  if (parading) return;
+  parading = true;
+  promptWord('数鸭鸭');
+  NUM_CN.forEach((cn, i) => setTimeout(() => {
+    const d = makeDuck({ mode: 'parade', size: 112, x: -140, homeY: waterY(112), vx: 118, life: 999 });
+    say(d, String(i + 1), 99999);
+    speak(cn, { rate: 0.9 });
+    quack(rand(1.1, 1.25));
+  }, i * 1250));
+  setTimeout(() => { speak('五只小鸭鸭，游得真快！'); parading = false; }, 5 * 1250 + 1300);
+}
+let night = false;
+function toggleNight() {
+  night = !night;
+  document.body.classList.toggle('night', night);
+  const b = document.querySelector('[data-act="night"]');
+  b.querySelector('.ico').textContent = night ? '☀️' : '🌙';
+  b.querySelector('.lbl').textContent = night ? '早上好' : '晚安';
+  if (night) {
+    speak('天黑啦，鸭鸭要睡觉了。晚安！');
+    say(mascot, '😴', 3600);
+    ducks.forEach(d => { if (!d.isMascot && Math.random() < 0.5) say(d, '😴', 3400); });
+  }
+  else { speak('天亮啦！早上好！'); say(mascot, '☀️', 2400); quack(1.05); }
+}
+function allJump() {
+  speak('哇——！');
+  confettiTop();
+  showPrompt('哇！宝宝拍拍手！', 'praise');
+  pendingPraise = true; praiseNotBefore = now() + 1200; praiseDeadline = now() + 9000;
+  ducks.forEach((d, i) => {
+    if (d.mode === 'swim' || d.mode === 'idle' || d.mode === 'parade') setTimeout(() => ducks.includes(d) && jumpDuck(d), i * 110);
+  });
+}
+function ducklings(n) {
+  speak(NUM_CN[n - 1]);
+  promptWord(NUM_CN.slice(0, n).join('、'));
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => {
+      const size = 92;
+      const d = makeDuck({ mode: 'idle', size, x: clamp(W / 2 + (i - (n - 1) / 2) * (size + 26) - size / 2, 10, W - size - 10), homeY: waterY(size), life: 6.5 });
+      say(d, String(i + 1), 2400);
+      quack(rand(1.2, 1.4));
+    }, i * 180);
+  }
+}
+function flyDuck(y, word) {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const size = rand(125, 150);
+  makeDuck({
+    mode: 'fly', size, baseY: y, x: dir > 0 ? -140 : W + 30,
+    vx: dir * rand(250, 340), face: dir, say: word || pick(['飞！', '哇——！']),
+  });
+  quack(rand(1.15, 1.3));
+}
+function dash(k) {
+  if (k === 'ArrowLeft' || k === 'ArrowRight') {
+    const dir = k === 'ArrowLeft' ? -1 : 1;
+    const size = rand(120, 150);
+    const d = makeDuck({ mode: 'swim', size, x: dir > 0 ? -160 : W + 30, homeY: waterY(size), vx: dir * rand(360, 470), face: dir, life: 8, fxEvery: 0.09 });
+    say(d, pick(['💨', '🐥']), 1800);
+    quack(1.1);
+  } else if (k === 'ArrowUp') {
+    const size = rand(125, 150);
+    const wy = H - 190;
+    makeDuck({ mode: 'jump', size, x: rand(60, W - size - 70), y: wy, groundY: wy, vy: -rand(780, 900), life: 8, say: '飞' });
+    boing();
+  } else if (k === 'ArrowDown') {
+    const size = rand(125, 150);
+    makeDuck({ mode: 'fall', size, x: rand(50, W - size - 60), y: -150, life: 9, say: '扑通' });
+  }
+}
+function wordDuck(word) {
+  if (now() - lastDuckSpawn < 300) return;
+  lastDuckSpawn = now();
+  promptWord(word);
+  if (word === '跳') {
+    const size = 140;
+    const wy = waterY(size);
+    makeDuck({ mode: 'jump', size, x: rand(60, W - size - 70), homeY: wy, groundY: wy, vy: -rand(520, 660), life: 8, say: word });
+    boing();
+    return;
+  }
+  if (word === '飞') { flyDuck(rand(80, Math.max(120, surfaceY() - 130)), word); return; }
+  if (word === '亲亲') {
+    const size = rand(140, 170);
+    const d = makeDuck({ mode: 'idle', size, x: rand(40, W - size - 50), homeY: waterY(size), life: 7, say: word });
+    kissFx(d);
+    setTimeout(() => d.el.isConnected && kissFx(d), 700);
+    quackAnim(d); quack(1.1);
+    setTimeout(() => speak(word), 250);
+    return;
+  }
+  if (word === '转圈圈') {
+    const size = rand(140, 165);
+    const d = makeDuck({ mode: 'idle', size, x: rand(40, W - size - 50), homeY: waterY(size), life: 7, say: word });
+    d.fxEl.classList.add('spin');
+    setTimeout(() => d.fxEl.isConnected && d.fxEl.classList.remove('spin'), 950);
+    quackAnim(d); quack(1.05);
+    setTimeout(() => speak(word), 250);
+    return;
+  }
+  const size = rand(140, 175);
+  const d = makeDuck({ mode: 'idle', size, x: rand(40, W - size - 50), homeY: waterY(size), life: 7, say: word });
+  quackAnim(d); quack(rand(0.9, 1.15));
+  if (word === '拍拍手') danceFx(d);
+  setTimeout(() => speak(word), 250);
+}
+function attract() {
+  const w = pick(['嘎嘎', '抱抱', '拍拍手', '鸭鸭', '星星']);
+  say(mascot, w, 2600);
+  quackAnim(mascot);
+  quack(rand(0.95, 1.1));
+  if (mascot.el.isConnected) parts.push(spark(mascot.x + mascot.size * 0.7, mascot.y - 6));
+}
+
+/* ================= 点鸭子:每只鸭子都能表演 ================= */
+function duckAt(x, y) {
+  let best = null, bd = 1e9;
+  for (const d of ducks) {
+    const cx = d.x + d.size * 0.55, cy = d.y + d.size * 0.45;
+    const dist = Math.hypot(x - cx, y - cy);
+    if (dist < d.size * 0.62 && dist < bd) { bd = dist; best = d; }
+  }
+  return best;
+}
+function kissFx(d) {
+  for (let i = 0; i < 3; i++) parts.push({ type: 'heart', x: d.x + d.size * 0.72, y: d.y + d.size * 0.25, t: -i * 0.25, dur: 1.6, c: pick(['💖', '💛', '🧡']) });
+}
+function danceFx(d) {
+  d.fxEl.classList.add('dance');
+  setTimeout(() => d.fxEl.isConnected && d.fxEl.classList.remove('dance'), 1900);
+  for (let i = 0; i < 3; i++) setTimeout(() => d.el.isConnected && parts.push(noteP(d.x + d.size * 0.6, d.y - 6, '🎵', pick(PALETTE))), i * 350);
+  tone(523.25, 0, 0.25, 0.12); tone(659.25, 0.35, 0.25, 0.12); tone(783.99, 0.7, 0.3, 0.12);
+}
+function startPeekaboo(d, vocal = false) {
+  if (d.peek || d.mode === 'jump' || d.mode === 'fall' || d.mode === 'fly') return;
+  d.peek = { t: 0, vocal, done: false };
+  say(d, '🙈', 1500);
+}
+function doAmbient(d) {
+  const r = Math.random();
+  if (r < 0.32) { quackAnim(d); quack(rand(0.9, 1.2), 0, 0.5); }
+  else if (r < 0.55) danceFx(d);
+  else if (r < 0.78) startPeekaboo(d, false);
+  else { kissFx(d); tone(880, 0, 0.18, 0.14); tone(1174.7, 0.12, 0.22, 0.14); }
+}
+
+/* ================= 点击屏幕 ================= */
+function tapAt(x, y) {
+  parts.push(ripple(x, y, 6, 90, 60));
+  const sy = surfaceY();
+  const hit = duckAt(x, y);
+  if (hit) {
+    if (Math.random() < 0.55 && ['swim', 'idle', 'parade'].includes(hit.mode)) {
+      jumpDuck(hit);
+      say(hit, '跳', 1400);
+    } else {
+      quackAnim(hit);
+      quack(rand(0.95, 1.25));
+      say(hit, pick(['嘎嘎', '你好', '耶']), 1600);
+      if (y > sy) splashAt(x, 0.5);
+    }
+    return;
+  }
+  if (y > sy) {
+    splashAt(x, 0.7);
+    if (now() - lastDuckSpawn > 320) {
+      lastDuckSpawn = now();
+      const size = rand(115, 150);
+      const roll = Math.random();
+      if (roll < 0.4) {
+        makeDuck({ mode: 'jump', size, x: clamp(x - size / 2, 8, W - size - 8), groundY: waterY(size), vy: -rand(480, 620), life: 8, say: Math.random() < 0.5 ? '嘎' : '跳' });
+        boing();
+      } else if (roll < 0.65) {
+        const d = makeDuck({ mode: 'swim', size, x: clamp(x - size / 2, 8, W - size - 8), homeY: waterY(size), vx: rand(40, 80) * (Math.random() < 0.5 ? -1 : 1), life: 9 });
+        quackAnim(d); quack(rand(1, 1.25));
+      } else {
+        const d = makeDuck({ mode: 'idle', size, x: clamp(x - size / 2, 8, W - size - 8), homeY: waterY(size), life: 9 });
+        startPeekaboo(d, true);
+      }
+    } else {
+      quack(rand(1.2, 1.4), 0, 0.3);
+    }
+  } else {
+    parts.push(spark(x, y));
+    if (now() - lastDuckSpawn > 320) { lastDuckSpawn = now(); flyDuck(y); }
+  }
+}
+
+/* ================= 麦克风（听到宝宝发声就庆祝） ================= */
+const micBtn = $('#btn-mic');
+let micOn = false, micStream = null, analyser = null, micCool = 0;
+const fbuf = new Float32Array(1024), bbuf = new Uint8Array(1024);
+async function toggleMic() {
+  if (micOn) {
+    micStream.getTracks().forEach(t => t.stop());
+    micOn = false; analyser = null;
+    micBtn.classList.remove('listening');
+    showPrompt('麦克风已关闭', 'hint');
+    return;
+  }
+  initAudio();
+  if (!actx || !navigator.mediaDevices) { showPrompt('这里开不了麦克风～', 'hint'); return; }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const src = actx.createMediaStreamSource(micStream);
+    analyser = actx.createAnalyser(); analyser.fftSize = 1024;
+    src.connect(analyser);
+    micOn = true;
+    micBtn.classList.add('listening');
+    showPrompt('麦克风开啦！宝宝一说话，鸭鸭就庆祝！', 'praise');
+  } catch (err) {
+    showPrompt('麦克风开不了～没关系，宝宝说什么都很棒！', 'hint');
+  }
+}
+function checkMic() {
+  let rms = 0;
+  if (analyser.getFloatTimeDomainData) {
+    analyser.getFloatTimeDomainData(fbuf);
+    for (let i = 0; i < fbuf.length; i++) rms += fbuf[i] * fbuf[i];
+    rms = Math.sqrt(rms / fbuf.length);
+  } else {
+    analyser.getByteTimeDomainData(bbuf);
+    for (let i = 0; i < bbuf.length; i++) { const v = (bbuf[i] - 128) / 128; rms += v * v; }
+    rms = Math.sqrt(rms / bbuf.length);
+  }
+  if (rms > 0.06 && now() - micCool > 2200) {
+    micCool = now();
+    micBtn.classList.add('hit');
+    setTimeout(() => micBtn.classList.remove('hit'), 350);
+    onBabyVoice();
+  }
+}
+function onBabyVoice() {
+  lastAction = now();
+  if (pendingPraise) praise();
+  else { parts.push(spark(mascot.x + mascot.size * 0.7, mascot.y)); quack(1.3, 0, 0.35); }
+}
+
+/* ================= 输入绑定 ================= */
+let helpOpen = false, welcomed = false;
+const splashEl = $('#splash'), helpEl = $('#help');
+function hideSplash() {
+  if (splashEl.classList.contains('gone')) return;
+  splashEl.classList.add('gone');
+  setTimeout(() => splashEl.style.display = 'none', 800);
+}
+function firstContact() {
+  if (welcomed) return;
+  welcomed = true;
+  hideSplash();
+  speak('你好呀！我是小鸭鸭！');
+  say(mascot, '你好', 2600);
+  promptWord('你好');
+}
+function openHelp() { helpOpen = true; helpEl.classList.remove('hidden'); }
+function closeHelp() { helpOpen = false; helpEl.classList.add('hidden'); }
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+stageEl.addEventListener('pointerdown', e => {
+  initAudio();
+  const x = e.clientX, y = e.clientY;
+  if (e.target.closest('#parent')) return;
+  if (e.target.closest('#help')) { closeHelp(); return; }
+  if (e.target.closest('#controls')) return;
+  firstContact();
+  lastAction = now();
+  babyActed();
+  for (let i = soaps.length - 1; i >= 0; i--) {
+    const s = soaps[i];
+    const cx = s.x + s.size / 2, cy = s.y + s.size / 2;
+    if ((x - cx) ** 2 + (y - cy) ** 2 < (s.size / 2 + 12) ** 2) { popSoap(i); return; }
+  }
+  tapAt(x, y);
+});
+
+for (const b of document.querySelectorAll('#controls button')) {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    initAudio(); firstContact();
+    lastAction = now();
+    babyActed();
+    doAct(b.dataset.act);
+  });
+}
+function doAct(act) {
+  if (act === 'quack') bigQuack();
+  else if (act === 'bubbles') bubbleShow();
+  else if (act === 'sing') sing();
+  else if (act === 'parade') parade();
+  else if (act === 'night') toggleNight();
+}
+
+window.addEventListener('keydown', e => {
+  if (helpOpen) { closeHelp(); return; }
+  initAudio(); firstContact();
+  lastAction = now();
+  if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) e.preventDefault();
+  babyActed();
+  if (e.repeat && now() - lastDuckSpawn < 500) return;
+  const k = e.key;
+  if (k === ' ') bigQuack();
+  else if (k === 'd' || k === 'D') parade();
+  else if (k === 'b' || k === 'B') bubbleShow();
+  else if (k === 'm' || k === 'M') sing();
+  else if (k === 'n' || k === 'N') toggleNight();
+  else if (k === 'Enter') allJump();
+  else if (k.startsWith('Arrow')) dash(k);
+  else if (k >= '1' && k <= '5') ducklings(+k);
+  else if (k === 'Escape') { /* 退出全屏交给浏览器 */ }
+  else if (k.length === 1) wordDuck(pick(WORDS));
+});
+
+$('#btn-mute').addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  initAudio();
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : 0.9;
+  if (muted) { try { speechSynthesis.cancel(); } catch (err) {} }
+  $('#btn-mute').textContent = muted ? '🔇' : '🔊';
+});
+micBtn.addEventListener('pointerdown', e => { e.stopPropagation(); toggleMic(); });
+$('#btn-help').addEventListener('pointerdown', e => { e.stopPropagation(); openHelp(); });
+$('#btn-close-help').addEventListener('pointerdown', e => { e.stopPropagation(); closeHelp(); });
+$('#btn-fullscreen').addEventListener('pointerdown', e => { e.stopPropagation(); toggleFullscreen(); });
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+/* ================= 装饰生成 ================= */
+function buildDecorations() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const rays = $('#sunrays');
+  for (let i = 0; i < 12; i++) {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', 60); l.setAttribute('y1', 6);
+    l.setAttribute('x2', 60); l.setAttribute('y2', 22);
+    l.setAttribute('stroke', '#FFD93B'); l.setAttribute('stroke-width', '8');
+    l.setAttribute('stroke-linecap', 'round');
+    l.setAttribute('transform', `rotate(${i * 30} 60 60)`);
+    rays.appendChild(l);
+  }
+  const stars = $('#stars');
+  for (let i = 0; i < 46; i++) {
+    const s = document.createElement('span');
+    s.textContent = Math.random() < 0.3 ? '✦' : '★';
+    s.style.left = rand(0, 100) + '%';
+    s.style.top = rand(0, 58) + '%';
+    s.style.fontSize = rand(10, 24) + 'px';
+    s.style.animationDuration = rand(1.5, 3.5) + 's';
+    s.style.animationDelay = rand(0, 3) + 's';
+    stars.appendChild(s);
+  }
+}
+
+/* ================= 主循环 ================= */
+function update(dt) {
+  const sy = surfaceY();
+  for (let i = ducks.length - 1; i >= 0; i--) {
+    const d = ducks[i];
+    d.t += dt; d.age += dt;
+    if (d.mode === 'swim' || d.mode === 'parade') {
+      d.x += d.vx * dt;
+      if (d.mode === 'swim') {
+        if (d.x < d.minX) { d.x = d.minX; d.vx = Math.abs(d.vx); d.face = 1; }
+        if (d.x > d.maxX) { d.x = d.maxX; d.vx = -Math.abs(d.vx); d.face = -1; }
+      } else if (d.x > W + 140) { removeDuck(i); continue; }
+      d.y = d.homeY + Math.sin(d.t * 2.1 + d.phase) * 7;
+      d.rot = Math.sin(d.t * 2.1 + d.phase) * 4;
+      d.fxT -= dt;
+      if (d.fxT <= 0) { d.fxT = d.fxEvery; parts.push(ripple(d.x + d.size * 0.55, sy + 4, 8, 60, 34)); }
+    } else if (d.mode === 'idle') {
+      d.y = d.homeY + Math.sin(d.t * 1.8 + d.phase) * 8;
+      d.rot = Math.sin(d.t * 1.5 + d.phase) * 3.5;
+      d.fxT -= dt;
+      if (d.fxT <= 0) { d.fxT = rand(1.6, 3.2); parts.push(ripple(d.x + d.size * 0.55, sy + 4, 8, 60, 34)); }
+    } else if (d.mode === 'jump') {
+      d.vy += 1500 * dt; d.y += d.vy * dt;
+      d.rot = Math.sin(d.t * 12) * 5;
+      if (d.vy > 0 && d.y >= d.groundY) landDuck(d);
+    } else if (d.mode === 'fall') {
+      d.vy += 1300 * dt; d.y += d.vy * dt;
+      d.rot += d.rotV * dt;
+      if (d.y >= d.groundY) landDuck(d, true);
+    } else if (d.mode === 'fly') {
+      d.x += d.vx * dt;
+      d.y = d.baseY + Math.sin(d.t * 7) * 12;
+      d.rot = Math.sin(d.t * 7 + 1.2) * 5;
+      d.fxT -= dt;
+      if (d.fxT <= 0) { d.fxT = d.fxEvery; parts.push(spark(d.x + d.size * 0.2, d.y + d.size * 0.35)); }
+      if (d.x < -160 || d.x > W + 160) { removeDuck(i); continue; }
+    }
+    if (d.peek) {
+      const t = d.peek.t; d.peek.t += dt;
+      const k = t < 0.5 ? t / 0.5 : t < 1.3 ? 1 : Math.max(0, 1 - (t - 1.3) / 0.5);
+      d.y += d.size * 0.55 * k;
+      d.el.style.opacity = String(1 - k * 0.82);
+      if (t >= 1.8 && !d.peek.done) {
+        d.peek.done = true;
+        d.el.style.opacity = '';
+        splashAt(d.x + d.size * 0.5, 0.9);
+        quackAnim(d); quack(rand(1.05, 1.25));
+        if (d.peek.vocal || Math.random() < 0.35) speak('躲猫猫');
+      }
+      if (t > 1.9) d.peek = null;
+    }
+    if ((d.mode === 'swim' || d.mode === 'idle' || d.mode === 'parade') && !d.peek && !d.el.classList.contains('leaving')) {
+      d.ambT -= dt;
+      if (d.ambT <= 0) { d.ambT = rand(4, 9); doAmbient(d); }
+    }
+    if (d.mode !== 'fly' && d.mode !== 'parade' && !d.isMascot && d.age > d.life) {
+      if (!d.el.classList.contains('leaving')) d.el.classList.add('leaving');
+      if (d.age > d.life + 0.95) { removeDuck(i); continue; }
+    }
+    d.el.style.transform = `translate(${d.x}px, ${d.y}px) rotate(${d.rot}deg)`;
+    d.faceEl.style.transform = `scaleX(${d.face})`;
+  }
+  for (let i = soaps.length - 1; i >= 0; i--) {
+    const s = soaps[i];
+    s.t += dt;
+    s.y += s.vy * dt;
+    s.x += Math.sin(s.t * 2 + s.phase) * 22 * dt;
+    if (s.y < -s.size - 30) { s.el.remove(); soaps.splice(i, 1); continue; }
+    s.el.style.left = s.x + 'px';
+    s.el.style.top = s.y + 'px';
+  }
+  if (micOn && analyser) checkMic();
+  if (now() - lastAction > 17000 && !parading) { lastAction = now(); attract(); }
+  if (pendingPraise && now() > praiseDeadline) pendingPraise = false;
+}
+let last = performance.now();
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000);
+  last = ts;
+  try { update(dt); drawFx(dt); } catch (e) { /* 吞掉单帧异常,保证宝宝玩耍时循环不中断 */ }
+  requestAnimationFrame(frame);
+}
+
+/* ================= 启动 ================= */
+buildDecorations();
+mascot = makeDuck({ mode: 'idle', isMascot: true, size: 230, x: W * 0.5 - 115, homeY: waterY(230), life: 99999 });
+setTimeout(() => say(mascot, '嘎嘎', 2400), 800);
+for (let i = 0; i < 3; i++) {
+  setTimeout(() => makeDuck({ mode: 'swim', size: rand(110, 135), vx: rand(35, 65) * (Math.random() < 0.5 ? -1 : 1), life: 11, say: i === 0 ? '嘎嘎' : undefined }), 400 + i * 500);
+}
+window.addEventListener('resize', () => {
+  resize();
+  if (mascot) { mascot.x = W * 0.5 - mascot.size / 2; mascot.homeY = waterY(mascot.size); mascot.groundY = mascot.homeY; }
+  ducks.forEach(d => { d.maxX = W - d.size - 6; d.x = clamp(d.x, 6, Math.max(6, d.maxX)); });
+});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
